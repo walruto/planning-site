@@ -2,7 +2,7 @@
 
 A self-contained team purchase tracker built from the supplied planning brief.
 
-[View the live site](https://planning-site-eight.vercel.app)
+[View the live site](https://planning-site-eight.vercel.app) · [Download the pitch deck](deck/Northstar-Pitch-Deck.pptx?raw=1)
 
 ![Northstar purchase planning dashboard](docs/northstar-overview.png)
 
