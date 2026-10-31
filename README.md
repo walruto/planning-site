@@ -2,6 +2,12 @@
 
 A self-contained team purchase tracker built from the supplied planning brief.
 
+[View the live site](https://planning-site-eight.vercel.app)
+
+![Northstar purchase planning dashboard](docs/northstar-overview.png)
+
+## Run locally
+
 Run it from this folder with any static server, for example:
 
 ```sh
