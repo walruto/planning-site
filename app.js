@@ -150,7 +150,7 @@ function renderTeam() {
   $('team-grid').innerHTML = activeUsers().map(user => {
     const purchases = state.purchases.filter(purchase => purchase.purchaserId === user.id);
     const access = ['Member', 'Member', 'Manager', 'Admin'][user.access] || 'Member';
-    const action = isAdmin ? (user.id === actor.id ? '<span class="current-member">Current admin</span>' : `<button class="remove-member" type="button" data-remove-user="${user.id}">Remove member</button>`) : '';
+    const action = isAdmin ? (user.id === actor.id ? '<span class="current-member">Current admin</span>' : canManageTeam(user) ? '<span class="current-member">Admin protected</span>' : `<button class="remove-member" type="button" data-remove-user="${user.id}">Remove member</button>`) : '';
     return `<article class="member-card"><div class="member-top">${avatar(user)}<span class="access-badge ${access.toLowerCase()}">${access}</span></div><h3>${escapeHtml(user.name)}</h3><p>${escapeHtml(user.role)}</p><div class="member-stats"><div><span>Purchases</span><b>${purchases.length}</b></div><div><span>Total spend</span><b>${money(summarize(purchases).total)}</b></div></div>${action ? `<div class="member-actions">${action}</div>` : ''}</article>`;
   }).join('');
 }
@@ -213,7 +213,7 @@ $('team-grid').addEventListener('click', event => {
   const button = event.target.closest('[data-remove-user]');
   if (!button) return;
   const member = userById(button.dataset.removeUser);
-  if (!canRemoveMember(activeUser(), member)) return showToast('Only admins can remove other team members.');
+  if (!canRemoveMember(activeUser(), member)) return showToast(member?.access === 3 ? 'Admin accounts cannot be removed.' : 'Only admins can remove team members.');
   if (!confirm(`Remove ${member.name} from the team? Their purchase history will be kept.`)) return;
   member.removed = true;
   save();

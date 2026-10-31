@@ -9,11 +9,13 @@ assert.equal(parsePrice('12.345'), null);
 assert.equal(initials('Avery Morgan'), 'AM');
 assert.deepEqual(summarize([{ price: 10 }, { price: 25 }]), { total: 35, average: 17.5, count: 2 });
 const admin = { id: 'admin', access: 3 };
+const otherAdmin = { id: 'other-admin', access: 3 };
 const member = { id: 'member', access: 1 };
 assert.equal(canManageTeam(admin), true);
 assert.equal(canManageTeam(member), false);
 assert.equal(canRemoveMember(admin, member), true);
 assert.equal(canRemoveMember(admin, admin), false);
+assert.equal(canRemoveMember(admin, otherAdmin), false);
 assert.equal(canRemoveMember(member, admin), false);
 
 console.log('planning-core tests passed');
