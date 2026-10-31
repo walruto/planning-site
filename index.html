@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f1e9">
+  <meta name="description" content="Northstar purchase planning and team operations dashboard.">
+  <title>Northstar — Purchase Planning</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="sidebar">
+    <a class="brand" href="#overview" data-route="overview" aria-label="Northstar overview">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32"><path d="M16 2l3.1 10.9L30 16l-10.9 3.1L16 30l-3.1-10.9L2 16l10.9-3.1L16 2Z"/></svg>
+      </span>
+      <span>northstar<small>Project operations</small></span>
+    </a>
+
+    <nav aria-label="Main navigation">
+      <p class="nav-label">Workspace</p>
+      <a class="nav-link active" href="#overview" data-route="overview">
+        <svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-12h6V4h-6v4Z"/></svg>
+        Overview
+      </a>
+      <a class="nav-link" href="#purchases" data-route="purchases">
+        <svg viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>
+        Purchases
+        <span class="nav-count" id="purchase-count">0</span>
+      </a>
+      <a class="nav-link" href="#team" data-route="team">
+        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Team & roles
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="budget-mini">
+        <div><span>Monthly budget</span><b id="budget-percent">0%</b></div>
+        <div class="progress"><i id="budget-progress"></i></div>
+        <small><span id="budget-spend">$0</span> of $12,000 used</small>
+      </div>
+      <button class="profile" id="profile-button" type="button" aria-haspopup="listbox" aria-expanded="false">
+        <span class="avatar" id="profile-avatar">AM</span>
+        <span><b id="profile-name">Avery Morgan</b><small id="profile-role">Project lead</small></span>
+        <svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg>
+      </button>
+      <div class="profile-menu" id="profile-menu" role="listbox" aria-label="Act as team member" hidden></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page active" id="overview-page" data-page="overview" aria-labelledby="overview-title">
+      <div class="page-head">
+        <div><p class="eyebrow">Saturday, October 31</p><h1 id="overview-title">Good morning, <span id="greeting-name">Avery.</span></h1><p>Here’s how project spending is shaping up.</p></div>
+        <button class="primary-button" type="button" data-go="purchases" data-open-purchase><span>+</span> Log a purchase</button>
+      </div>
+
+      <div class="stats-grid">
+        <article class="stat-card featured">
+          <div class="stat-top"><span class="stat-icon"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="trend" id="month-trend">This month</span></div>
+          <p>Total spend</p><strong id="total-spend">$0.00</strong><small id="spend-caption">Across 0 purchases</small>
+        </article>
+        <article class="stat-card">
+          <div class="stat-top"><span class="stat-icon peach"><svg viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5M17 4l3 3-3 3M8 14l-3 3 3 3"/></svg></span></div>
+          <p>Average purchase</p><strong id="average-spend">$0.00</strong><small>Per approved entry</small>
+        </article>
+        <article class="stat-card">
+          <div class="stat-top"><span class="stat-icon mint"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 11l2 2 4-4"/></svg></span></div>
+          <p>Active purchasers</p><strong id="active-purchasers">0</strong><small id="team-caption">Of 0 team members</small>
+        </article>
+      </div>
+
+      <div class="overview-grid">
+        <article class="panel spend-panel">
+          <div class="panel-head"><div><p class="eyebrow">Spend activity</p><h2>Monthly overview</h2></div><span class="panel-note">Last 6 months</span></div>
+          <div class="chart" id="spend-chart" aria-label="Monthly spend chart"></div>
+        </article>
+        <article class="panel category-panel">
+          <div class="panel-head"><div><p class="eyebrow">Allocation</p><h2>Spend by category</h2></div></div>
+          <div class="donut-wrap">
+            <div class="donut" id="category-donut"><span><b id="category-total">$0</b><small>Total</small></span></div>
+            <div class="legend" id="category-legend"></div>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel recent-panel">
+        <div class="panel-head"><div><p class="eyebrow">Latest activity</p><h2>Recent purchases</h2></div><button class="text-button" type="button" data-go="purchases">View all <span>→</span></button></div>
+        <div class="table-wrap"><table><thead><tr><th>Purchase</th><th>Purchaser</th><th>Date</th><th>Category</th><th class="right">Amount</th></tr></thead><tbody id="recent-purchases"></tbody></table></div>
+      </article>
+    </section>
+
+    <section class="page" id="purchases-page" data-page="purchases" aria-labelledby="purchases-title">
+      <div class="page-head compact-head">
+        <div><p class="eyebrow">Financial entry tracking</p><h1 id="purchases-title">Purchases</h1><p>Every project expense, tied to the person who made it.</p></div>
+        <button class="primary-button" id="open-purchase-modal" type="button"><span>+</span> New purchase</button>
+      </div>
+      <div class="toolbar">
+        <label class="search-field"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="purchase-search" type="search" placeholder="Search purchases or vendors…"></label>
+        <label class="select-field"><span>Category</span><select id="category-filter"><option value="">All categories</option></select></label>
+        <label class="select-field"><span>Purchaser</span><select id="purchaser-filter"><option value="">Everyone</option></select></label>
+      </div>
+      <article class="panel purchase-list-panel">
+        <div class="list-summary"><span><b id="filtered-count">0</b> entries</span><strong id="filtered-total">$0.00</strong></div>
+        <div class="table-wrap"><table><thead><tr><th>Purchase</th><th>Purchaser</th><th>Date</th><th>Category</th><th>Location</th><th class="right">Amount</th></tr></thead><tbody id="purchase-table"></tbody></table></div>
+        <div class="empty-state" id="purchase-empty" hidden><span>⌕</span><h3>No purchases found</h3><p>Try changing the filters or log a new purchase.</p></div>
+      </article>
+    </section>
+
+    <section class="page" id="team-page" data-page="team" aria-labelledby="team-title">
+      <div class="page-head compact-head">
+        <div><p class="eyebrow">Access & responsibility</p><h1 id="team-title">Team & roles</h1><p>Control who can submit, approve, and manage project spending.</p></div>
+        <button class="primary-button" id="open-member-modal" type="button"><span>+</span> Add member</button>
+      </div>
+      <div class="role-key">
+        <div><i class="role-dot admin"></i><span><b>Admin</b><small>Full workspace control</small></span></div>
+        <div><i class="role-dot manager"></i><span><b>Manager</b><small>Review and approve</small></span></div>
+        <div><i class="role-dot member"></i><span><b>Member</b><small>Submit purchases</small></span></div>
+      </div>
+      <div class="team-grid" id="team-grid"></div>
+    </section>
+  </main>
+
+  <dialog id="purchase-modal">
+    <form id="purchase-form" method="dialog">
+      <div class="modal-head"><div><p class="eyebrow">New expense</p><h2>Log a purchase</h2><p>It will be linked to <span id="modal-user-name">your profile</span>.</p></div><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
+      <div class="form-grid">
+        <label class="full">What did you buy?<input name="description" required maxlength="80" placeholder="e.g. Research participant gift cards"></label>
+        <label>Purchase date<input name="date" type="date" required></label>
+        <label>Price<div class="money-input"><span>$</span><input name="price" inputmode="decimal" required placeholder="0.00"></div><small class="field-error" id="price-error"></small></label>
+        <label>Where did you buy it?<input name="location" required maxlength="60" placeholder="Merchant or vendor"></label>
+        <label>Category<select name="category" required></select></label>
+        <label class="full">Why was it needed?<textarea name="reason" required maxlength="240" rows="4" placeholder="Explain the project relevance or business need"></textarea></label>
+      </div>
+      <div class="modal-actions"><button class="secondary-button" type="button" data-close>Cancel</button><button class="primary-button" type="submit">Save purchase <span>→</span></button></div>
+    </form>
+  </dialog>
+
+  <dialog id="member-modal">
+    <form id="member-form" method="dialog">
+      <div class="modal-head"><div><p class="eyebrow">Team access</p><h2>Add a member</h2><p>Assign their project responsibility and permission level.</p></div><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
+      <div class="form-grid">
+        <label class="full">Full name<input name="name" required maxlength="60" placeholder="First and last name"></label>
+        <label>Role<select name="role" required><option>Project lead</option><option>Operations manager</option><option>Finance lead</option><option>Designer</option><option>Researcher</option><option>Engineer</option></select></label>
+        <label>Access level<select name="access" required><option value="3">Admin — full control</option><option value="2">Manager — review & approve</option><option value="1" selected>Member — submit purchases</option></select></label>
+      </div>
+      <div class="modal-actions"><button class="secondary-button" type="button" data-close>Cancel</button><button class="primary-button" type="submit">Add member <span>→</span></button></div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+.vercel
+.pitch-build
+node_modules
+.DS_Store
