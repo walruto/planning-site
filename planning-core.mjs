@@ -15,3 +15,7 @@ export function summarize(purchases) {
   const total = purchases.reduce((sum, purchase) => sum + purchase.price, 0);
   return { total, average: purchases.length ? total / purchases.length : 0, count: purchases.length };
 }
+
+export const canManageTeam = user => Number(user?.access) === 3 && !user?.removed;
+
+export const canRemoveMember = (actor, member) => canManageTeam(actor) && Boolean(member) && actor.id !== member.id && !member.removed;

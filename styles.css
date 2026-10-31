@@ -168,6 +168,11 @@ select, input, textarea { border: 1px solid #dfe2dc; border-radius: 10px; color:
 .member-stats div + div { padding-left: 15px; border-left: 1px solid var(--line); }
 .member-stats span { color: var(--soft); font-size: 8px; text-transform: uppercase; letter-spacing: .07em; }
 .member-stats b { font: 600 14px Manrope, sans-serif; }
+.permission-message { margin: -18px 0 24px; color: #8b5f2b; font-size: 10px; }
+.member-actions { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.remove-member { padding: 3px 0; border: 0; color: #a04d40; background: none; font-size: 9px; font-weight: 600; }
+.remove-member:hover { color: #7e3027; text-decoration: underline; text-underline-offset: 3px; }
+.current-member { color: var(--soft); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
 
 dialog { width: min(610px, calc(100% - 28px)); max-height: calc(100vh - 36px); overflow: auto; padding: 0; border: 0; border-radius: 20px; background: #fffefa; box-shadow: 0 30px 90px #102b2566; }
 dialog::backdrop { background: #102b25aa; backdrop-filter: blur(4px); }

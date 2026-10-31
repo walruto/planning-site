@@ -1,4 +1,4 @@
-import { initials, money, parsePrice, summarize } from './planning-core.mjs';
+import { canManageTeam, canRemoveMember, initials, money, parsePrice, summarize } from './planning-core.mjs';
 
 const STORAGE_KEY = 'northstar-planning-v1';
 const BUDGET = 12000;
@@ -38,6 +38,7 @@ function loadState() {
 
 let state = loadState();
 const userById = id => state.users.find(user => user.id === id);
+const activeUsers = () => state.users.filter(user => !user.removed);
 const activeUser = () => userById(state.activeUserId) || state.users[0];
 const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 const dateLabel = date => new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -79,20 +80,20 @@ function renderProfile() {
   $('profile-role').textContent = user.role;
   $('greeting-name').textContent = `${user.name.split(' ')[0]}.`;
   $('modal-user-name').textContent = user.name;
-  $('profile-menu').innerHTML = state.users.map((member, index) => `<button class="profile-option ${member.id === user.id ? 'selected' : ''}" type="button" role="option" aria-selected="${member.id === user.id}" data-user="${member.id}">${avatar(member, index)}<span>${escapeHtml(member.name)}</span></button>`).join('');
+  $('profile-menu').innerHTML = activeUsers().map(member => `<button class="profile-option ${member.id === user.id ? 'selected' : ''}" type="button" role="option" aria-selected="${member.id === user.id}" data-user="${member.id}">${avatar(member)}<span>${escapeHtml(member.name)}</span></button>`).join('');
 }
 
 function renderOverview() {
   const sorted = [...state.purchases].sort((a, b) => b.date.localeCompare(a.date));
   const currentMonth = sorted.filter(purchase => purchase.date.slice(0, 7) === '2026-10');
   const summary = summarize(currentMonth);
-  const active = new Set(currentMonth.map(purchase => purchase.purchaserId)).size;
+  const active = new Set(currentMonth.filter(purchase => !userById(purchase.purchaserId)?.removed).map(purchase => purchase.purchaserId)).size;
   $('purchase-count').textContent = state.purchases.length;
   $('total-spend').textContent = money(summary.total);
   $('average-spend').textContent = money(summary.average);
   $('spend-caption').textContent = `Across ${summary.count} purchase${summary.count === 1 ? '' : 's'}`;
   $('active-purchasers').textContent = active;
-  $('team-caption').textContent = `Of ${state.users.length} team members`;
+  $('team-caption').textContent = `Of ${activeUsers().length} team members`;
   $('budget-spend').textContent = money(summary.total).replace('.00', '');
   const budgetPercent = Math.round(summary.total / BUDGET * 100);
   $('budget-percent').textContent = `${budgetPercent}%`;
@@ -142,10 +143,15 @@ function renderPurchases() {
 }
 
 function renderTeam() {
-  $('team-grid').innerHTML = state.users.map((user, index) => {
+  const actor = activeUser();
+  const isAdmin = canManageTeam(actor);
+  $('open-member-modal').hidden = !isAdmin;
+  $('team-permission-message').hidden = isAdmin;
+  $('team-grid').innerHTML = activeUsers().map(user => {
     const purchases = state.purchases.filter(purchase => purchase.purchaserId === user.id);
     const access = ['Member', 'Member', 'Manager', 'Admin'][user.access] || 'Member';
-    return `<article class="member-card"><div class="member-top">${avatar(user, index)}<span class="access-badge ${access.toLowerCase()}">${access}</span></div><h3>${escapeHtml(user.name)}</h3><p>${escapeHtml(user.role)}</p><div class="member-stats"><div><span>Purchases</span><b>${purchases.length}</b></div><div><span>Total spend</span><b>${money(summarize(purchases).total)}</b></div></div></article>`;
+    const action = isAdmin ? (user.id === actor.id ? '<span class="current-member">Current admin</span>' : `<button class="remove-member" type="button" data-remove-user="${user.id}">Remove member</button>`) : '';
+    return `<article class="member-card"><div class="member-top">${avatar(user)}<span class="access-badge ${access.toLowerCase()}">${access}</span></div><h3>${escapeHtml(user.name)}</h3><p>${escapeHtml(user.role)}</p><div class="member-stats"><div><span>Purchases</span><b>${purchases.length}</b></div><div><span>Total spend</span><b>${money(summarize(purchases).total)}</b></div></div>${action ? `<div class="member-actions">${action}</div>` : ''}</article>`;
   }).join('');
 }
 
@@ -153,7 +159,7 @@ function updateOptions() {
   const categoryOptions = CATEGORIES.map(category => `<option>${category}</option>`).join('');
   $('category-filter').innerHTML = '<option value="">All categories</option>' + categoryOptions;
   document.querySelector('#purchase-form [name="category"]').innerHTML = '<option value="" disabled selected>Select category</option>' + categoryOptions;
-  $('purchaser-filter').innerHTML = '<option value="">Everyone</option>' + state.users.map(user => `<option value="${user.id}">${escapeHtml(user.name)}</option>`).join('');
+  $('purchaser-filter').innerHTML = '<option value="">Everyone</option>' + state.users.map(user => `<option value="${user.id}">${escapeHtml(user.name)}${user.removed ? ' (former)' : ''}</option>`).join('');
 }
 
 function renderAll() {
@@ -179,7 +185,11 @@ document.querySelectorAll('[data-go]').forEach(button => button.addEventListener
   if (button.hasAttribute('data-open-purchase')) openPurchaseModal();
 }));
 $('open-purchase-modal').addEventListener('click', openPurchaseModal);
-$('open-member-modal').addEventListener('click', () => { $('member-form').reset(); $('member-modal').showModal(); });
+$('open-member-modal').addEventListener('click', () => {
+  if (!canManageTeam(activeUser())) return showToast('Only admins can add team members.');
+  $('member-form').reset();
+  $('member-modal').showModal();
+});
 document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }));
 
@@ -194,8 +204,21 @@ $('profile-menu').addEventListener('click', event => {
   state.activeUserId = button.dataset.user;
   save();
   renderProfile();
+  renderTeam();
   $('profile-menu').hidden = true;
   showToast(`Now acting as ${activeUser().name}`);
+});
+
+$('team-grid').addEventListener('click', event => {
+  const button = event.target.closest('[data-remove-user]');
+  if (!button) return;
+  const member = userById(button.dataset.removeUser);
+  if (!canRemoveMember(activeUser(), member)) return showToast('Only admins can remove other team members.');
+  if (!confirm(`Remove ${member.name} from the team? Their purchase history will be kept.`)) return;
+  member.removed = true;
+  save();
+  renderAll();
+  showToast(`${member.name} was removed from the team.`);
 });
 
 ['purchase-search', 'category-filter', 'purchaser-filter'].forEach(id => $(id).addEventListener('input', renderPurchases));
@@ -223,6 +246,10 @@ $('purchase-form').addEventListener('submit', event => {
 
 $('member-form').addEventListener('submit', event => {
   event.preventDefault();
+  if (!canManageTeam(activeUser())) {
+    $('member-modal').close();
+    return showToast('Only admins can add team members.');
+  }
   const data = new FormData(event.currentTarget);
   state.users.push({ id: crypto.randomUUID(), name: data.get('name').trim(), role: data.get('role'), access: Number(data.get('access')) });
   save();
