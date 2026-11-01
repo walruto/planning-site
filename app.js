@@ -1,4 +1,4 @@
-import { canManageTeam, canRemoveMember, initials, money, parsePrice, summarize } from './planning-core.mjs';
+import { canManageTeam, canRemoveMember, canRemovePurchase, canViewAllPurchases, initials, money, parsePrice, summarize, visiblePurchasesFor } from './planning-core.mjs';
 
 const STORAGE_KEY = 'northstar-planning-v1';
 const BUDGET = 12000;
@@ -40,6 +40,7 @@ let state = loadState();
 const userById = id => state.users.find(user => user.id === id);
 const activeUsers = () => state.users.filter(user => !user.removed);
 const activeUser = () => userById(state.activeUserId) || state.users[0];
+const visiblePurchases = () => visiblePurchasesFor(activeUser(), state.purchases);
 const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 const dateLabel = date => new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
@@ -62,9 +63,10 @@ function avatar(user, index = state.users.indexOf(user)) {
   return `<span class="avatar" style="background:${avatarColors[index % avatarColors.length]}">${initials(user.name)}</span>`;
 }
 
-function purchaseRow(purchase, includeLocation = false) {
+function purchaseRow(purchase, includeLocation = false, includeActions = false) {
   const user = userById(purchase.purchaserId) || { name: 'Former member' };
-  return `<tr><td>${escapeHtml(purchase.description)}</td><td><span class="person-cell">${avatar(user)}${escapeHtml(user.name)}</span></td><td>${dateLabel(purchase.date)}</td><td><span class="category-pill">${escapeHtml(purchase.category)}</span></td>${includeLocation ? `<td>${escapeHtml(purchase.location)}</td>` : ''}<td class="right"><b>${money(purchase.price)}</b></td></tr>`;
+  const action = includeActions ? `<td class="right"><button class="remove-purchase" type="button" data-remove-purchase="${purchase.id}">Remove</button></td>` : '';
+  return `<tr><td>${escapeHtml(purchase.description)}</td><td><span class="person-cell">${avatar(user)}${escapeHtml(user.name)}</span></td><td>${dateLabel(purchase.date)}</td><td><span class="category-pill">${escapeHtml(purchase.category)}</span></td>${includeLocation ? `<td>${escapeHtml(purchase.location)}</td>` : ''}<td class="right"><b>${money(purchase.price)}</b></td>${action}</tr>`;
 }
 
 function escapeHtml(value) {
@@ -84,11 +86,11 @@ function renderProfile() {
 }
 
 function renderOverview() {
-  const sorted = [...state.purchases].sort((a, b) => b.date.localeCompare(a.date));
+  const sorted = [...visiblePurchases()].sort((a, b) => b.date.localeCompare(a.date));
   const currentMonth = sorted.filter(purchase => purchase.date.slice(0, 7) === '2026-10');
   const summary = summarize(currentMonth);
   const active = new Set(currentMonth.filter(purchase => !userById(purchase.purchaserId)?.removed).map(purchase => purchase.purchaserId)).size;
-  $('purchase-count').textContent = state.purchases.length;
+  $('purchase-count').textContent = sorted.length;
   $('total-spend').textContent = money(summary.total);
   $('average-spend').textContent = money(summary.average);
   $('spend-caption').textContent = `Across ${summary.count} purchase${summary.count === 1 ? '' : 's'}`;
@@ -99,16 +101,16 @@ function renderOverview() {
   $('budget-percent').textContent = `${budgetPercent}%`;
   $('budget-progress').style.width = `${Math.min(100, budgetPercent)}%`;
   $('recent-purchases').innerHTML = sorted.slice(0, 5).map(purchase => purchaseRow(purchase)).join('') || '<tr class="empty-row"><td colspan="5">No purchases logged yet.</td></tr>';
-  renderChart();
+  renderChart(sorted);
   renderCategories(currentMonth);
 }
 
-function renderChart() {
+function renderChart(purchases) {
   const months = [5, 6, 7, 8, 9, 10].map(month => ({
     key: `2026-${String(month).padStart(2, '0')}`,
     label: new Date(2026, month - 1).toLocaleDateString('en-US', { month: 'short' })
   }));
-  const totals = months.map(month => state.purchases.filter(purchase => purchase.date.startsWith(month.key)).reduce((sum, purchase) => sum + purchase.price, 0));
+  const totals = months.map(month => purchases.filter(purchase => purchase.date.startsWith(month.key)).reduce((sum, purchase) => sum + purchase.price, 0));
   const max = Math.max(...totals, 1);
   $('spend-chart').innerHTML = months.map((month, index) => `<div class="bar-group"><div class="bar ${index === months.length - 1 ? 'active' : ''}" style="height:${Math.max(3, totals[index] / max * 88)}%" data-value="${money(totals[index])}"></div><span>${month.label}</span></div>`).join('');
 }
@@ -131,13 +133,15 @@ function renderPurchases() {
   const query = $('purchase-search').value.trim().toLowerCase();
   const category = $('category-filter').value;
   const purchaser = $('purchaser-filter').value;
-  const filtered = [...state.purchases].filter(purchase => {
+  const filtered = [...visiblePurchases()].filter(purchase => {
     const text = `${purchase.description} ${purchase.location} ${purchase.reason}`.toLowerCase();
     return (!query || text.includes(query)) && (!category || purchase.category === category) && (!purchaser || purchase.purchaserId === purchaser);
   }).sort((a, b) => b.date.localeCompare(a.date));
   $('filtered-count').textContent = filtered.length;
   $('filtered-total').textContent = money(summarize(filtered).total);
-  $('purchase-table').innerHTML = filtered.map(purchase => purchaseRow(purchase, true)).join('');
+  const canRemove = canRemovePurchase(activeUser());
+  $('purchase-actions-head').hidden = !canRemove;
+  $('purchase-table').innerHTML = filtered.map(purchase => purchaseRow(purchase, true, canRemove)).join('');
   $('purchase-empty').hidden = filtered.length > 0;
   $('purchase-table').closest('.table-wrap').hidden = filtered.length === 0;
 }
@@ -145,13 +149,15 @@ function renderPurchases() {
 function renderTeam() {
   const actor = activeUser();
   const isAdmin = canManageTeam(actor);
+  const canSeeAllSpend = canViewAllPurchases(actor);
   $('open-member-modal').hidden = !isAdmin;
   $('team-permission-message').hidden = isAdmin;
   $('team-grid').innerHTML = activeUsers().map(user => {
     const purchases = state.purchases.filter(purchase => purchase.purchaserId === user.id);
     const access = ['Member', 'Member', 'Manager', 'Admin'][user.access] || 'Member';
     const action = isAdmin ? (user.id === actor.id ? '<span class="current-member">Current admin</span>' : canManageTeam(user) ? '<span class="current-member">Admin protected</span>' : `<button class="remove-member" type="button" data-remove-user="${user.id}">Remove member</button>`) : '';
-    return `<article class="member-card"><div class="member-top">${avatar(user)}<span class="access-badge ${access.toLowerCase()}">${access}</span></div><h3>${escapeHtml(user.name)}</h3><p>${escapeHtml(user.role)}</p><div class="member-stats"><div><span>Purchases</span><b>${purchases.length}</b></div><div><span>Total spend</span><b>${money(summarize(purchases).total)}</b></div></div>${action ? `<div class="member-actions">${action}</div>` : ''}</article>`;
+    const canSeeSpend = canSeeAllSpend || user.id === actor.id;
+    return `<article class="member-card"><div class="member-top">${avatar(user)}<span class="access-badge ${access.toLowerCase()}">${access}</span></div><h3>${escapeHtml(user.name)}</h3><p>${escapeHtml(user.role)}</p><div class="member-stats"><div><span>Purchases</span><b>${canSeeSpend ? purchases.length : 'Private'}</b></div><div><span>Total spend</span><b>${canSeeSpend ? money(summarize(purchases).total) : 'Private'}</b></div></div>${action ? `<div class="member-actions">${action}</div>` : ''}</article>`;
   }).join('');
 }
 
@@ -159,7 +165,10 @@ function updateOptions() {
   const categoryOptions = CATEGORIES.map(category => `<option>${category}</option>`).join('');
   $('category-filter').innerHTML = '<option value="">All categories</option>' + categoryOptions;
   document.querySelector('#purchase-form [name="category"]').innerHTML = '<option value="" disabled selected>Select category</option>' + categoryOptions;
-  $('purchaser-filter').innerHTML = '<option value="">Everyone</option>' + state.users.map(user => `<option value="${user.id}">${escapeHtml(user.name)}${user.removed ? ' (former)' : ''}</option>`).join('');
+  const user = activeUser();
+  const purchaserField = $('purchaser-filter').closest('.select-field');
+  purchaserField.hidden = !canViewAllPurchases(user);
+  $('purchaser-filter').innerHTML = canViewAllPurchases(user) ? '<option value="">Everyone</option>' + state.users.map(member => `<option value="${member.id}">${escapeHtml(member.name)}${member.removed ? ' (former)' : ''}</option>`).join('') : `<option value="${user.id}">${escapeHtml(user.name)}</option>`;
 }
 
 function renderAll() {
@@ -203,8 +212,7 @@ $('profile-menu').addEventListener('click', event => {
   if (!button) return;
   state.activeUserId = button.dataset.user;
   save();
-  renderProfile();
-  renderTeam();
+  renderAll();
   $('profile-menu').hidden = true;
   showToast(`Now acting as ${activeUser().name}`);
 });
@@ -219,6 +227,18 @@ $('team-grid').addEventListener('click', event => {
   save();
   renderAll();
   showToast(`${member.name} was removed from the team.`);
+});
+
+$('purchase-table').addEventListener('click', event => {
+  const button = event.target.closest('[data-remove-purchase]');
+  if (!button) return;
+  if (!canRemovePurchase(activeUser())) return showToast('Only admins can remove purchases.');
+  const purchase = state.purchases.find(item => item.id === button.dataset.removePurchase);
+  if (!purchase || !confirm(`Remove “${purchase.description}”? This cannot be undone.`)) return;
+  state.purchases = state.purchases.filter(item => item.id !== purchase.id);
+  save();
+  renderAll();
+  showToast('Purchase removed.');
 });
 
 ['purchase-search', 'category-filter', 'purchaser-filter'].forEach(id => $(id).addEventListener('input', renderPurchases));

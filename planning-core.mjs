@@ -19,3 +19,9 @@ export function summarize(purchases) {
 export const canManageTeam = user => Number(user?.access) === 3 && !user?.removed;
 
 export const canRemoveMember = (actor, member) => canManageTeam(actor) && Boolean(member) && actor.id !== member.id && Number(member.access) !== 3 && !member.removed;
+
+export const canViewAllPurchases = user => Number(user?.access) >= 2 && !user?.removed;
+
+export const visiblePurchasesFor = (user, purchases) => canViewAllPurchases(user) ? purchases : purchases.filter(purchase => purchase.purchaserId === user?.id);
+
+export const canRemovePurchase = user => canManageTeam(user);

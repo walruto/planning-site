@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { canManageTeam, canRemoveMember, initials, parsePrice, summarize } from './planning-core.mjs';
+import { canManageTeam, canRemoveMember, canRemovePurchase, canViewAllPurchases, initials, parsePrice, summarize, visiblePurchasesFor } from './planning-core.mjs';
 
 assert.equal(parsePrice('$1,234.50'), 1234.5);
 assert.equal(parsePrice('19.9'), 19.9);
@@ -10,6 +10,7 @@ assert.equal(initials('Avery Morgan'), 'AM');
 assert.deepEqual(summarize([{ price: 10 }, { price: 25 }]), { total: 35, average: 17.5, count: 2 });
 const admin = { id: 'admin', access: 3 };
 const otherAdmin = { id: 'other-admin', access: 3 };
+const manager = { id: 'manager', access: 2 };
 const member = { id: 'member', access: 1 };
 assert.equal(canManageTeam(admin), true);
 assert.equal(canManageTeam(member), false);
@@ -17,5 +18,14 @@ assert.equal(canRemoveMember(admin, member), true);
 assert.equal(canRemoveMember(admin, admin), false);
 assert.equal(canRemoveMember(admin, otherAdmin), false);
 assert.equal(canRemoveMember(member, admin), false);
+const purchases = [{ purchaserId: 'member' }, { purchaserId: 'other' }];
+assert.equal(canViewAllPurchases(admin), true);
+assert.equal(canViewAllPurchases(manager), true);
+assert.equal(canViewAllPurchases(member), false);
+assert.deepEqual(visiblePurchasesFor(member, purchases), [purchases[0]]);
+assert.deepEqual(visiblePurchasesFor(manager, purchases), purchases);
+assert.equal(canRemovePurchase(admin), true);
+assert.equal(canRemovePurchase(manager), false);
+assert.equal(canRemovePurchase(member), false);
 
 console.log('planning-core tests passed');
